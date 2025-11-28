@@ -112,7 +112,7 @@
     position:relative;
   }
 
-  /* ── 우측 상단: 센서(자이로) 패널 ── */
+  /* ── 우측 상단: 자이로 패널 ── */
   #rightTop{
     flex:1 1 auto; border-bottom:1px solid #e5e7eb; min-height: 120px;
     background:#020617; color:#fff;
@@ -209,9 +209,16 @@
     font-weight:600;
   }
   .gyro-event-text{
+    display:inline-block;
+    margin-top:4px;
+    padding:4px 10px;
+    border-radius:999px;
+    border:1px solid rgba(148,163,184,.8);
+    background:rgba(15,23,42,.25);
     font-size:13px;
     font-weight:600;
     color:#e5e7eb;
+    min-width:70px;
   }
   .gyro-hint{
     margin-top:6px;
@@ -293,7 +300,6 @@
     display:flex; align-items:center; justify-content:center;
     background:#020617;
   }
-  #overlayVoiceWrap,
   #overlayGyroWrap{
     width:100%; max-width:480px;
   }
@@ -374,7 +380,7 @@
   <!-- 헤더 -->
   <header id="appHeader">
     <div id="topbar">
-      <div class="title">XROBO v1 — 자이로 센서</div>
+      <div class="title">XROBO BLE — 음성 명령</div>
       <div class="spacer"></div>
 
       <!-- 파일 드롭다운 -->
@@ -421,8 +427,10 @@
               <button id="gyroBtn2" class="gyro-btn gyro-btn-2">2</button>
             </div>
             <div class="gyro-info">
-              <div id="gyroStatus" class="gyro-status">테스트 버튼을 눌러 자이로를 초기화하세요.</div>
-              <div id="gyroEventText" class="gyro-event-text">이벤트 대기 중</div>
+              <div id="gyroStatus" class="gyro-status">
+                테스트하기 전에 자이로 센서 화면에 수평을 맞추고 테스트나 실행 버튼을 눌러 주세요.
+              </div>
+              <div id="gyroEventText" class="gyro-event-text">대기 중</div>
             </div>
           </div>
         </div>
@@ -486,8 +494,10 @@
             <button id="overlayGyroBtn2" class="gyro-btn gyro-btn-2">2</button>
           </div>
           <div class="gyro-info">
-            <div id="overlayGyroStatus" class="gyro-status">실행 버튼을 눌러 시작하세요.</div>
-            <div id="overlayGyroEventText" class="gyro-event-text">이벤트 대기 중</div>
+            <div id="overlayGyroStatus" class="gyro-status">
+              테스트하기 전에 자이로 센서 화면에 수평을 맞추고 테스트나 실행 버튼을 눌러 주세요.
+            </div>
+            <div id="overlayGyroEventText" class="gyro-event-text">대기 중</div>
             <div class="gyro-hint">힌트: 화면을 두 번 탭하면 실행이 종료됩니다.</div>
           </div>
         </div>
@@ -717,16 +727,7 @@ function normalizeProgram(list){
   return out;
 }
 
-/* 트리거 문자열 정규화 (음성 전용 – 지금은 사용 X) */
-function normalizeTrigger(str){
-  return (str || '')
-    .toLowerCase()
-    .replace(/\s+/g,'')
-    .replace(/[^\p{L}\p{N}]/gu,'')
-    .trim();
-}
-
-/* 워크스페이스에서 이벤트 프로그램 빌드 (자이로/버튼 이벤트 기준) */
+/* 워크스페이스에서 이벤트 프로그램 빌드 */
 function buildEventPrograms(){
   var map = {};
   var evs = ws.getBlocksByType('xrobo_start', true);
@@ -852,7 +853,7 @@ function updateGyroStatus(message){
     }else if(gyroPermissionState === 'denied'){
       text = '브라우저에서 자이로 센서 사용이 거부되었습니다.';
     }else{
-      text = '테스트 버튼을 눌러 자이로를 초기화하세요.';
+      text = '테스트하기 전에 자이로 센서 화면에 수평을 맞추고 테스트나 실행 버튼을 눌러 주세요.';
     }
   }
   var el1 = $('gyroStatus');
@@ -861,17 +862,23 @@ function updateGyroStatus(message){
   if(el2) el2.textContent = text;
 }
 
-/* 실행 상태에 따라 자이로 상태 업데이트 */
+/* 실행 상태에 따라 자이로 상태/메시지 업데이트 */
 function updateGyroRunningState(isOn){
+  var status1 = $('gyroStatus');
+  var status2 = $('overlayGyroStatus');
+  var e1 = $('gyroEventText');
+  var e2 = $('overlayGyroEventText');
+
   if(!isOn){
-    var e1 = $('gyroEventText');
-    var e2 = $('overlayGyroEventText');
-    if(e1) e1.textContent = '이벤트 대기 중';
-    if(e2) e2.textContent = '이벤트 대기 중';
-    updateGyroStatus();
+    if(status1) status1.style.display = '';
+    if(status2) status2.style.display = '';
+    updateGyroStatus(); // 기본 안내 문구 복원
   }else{
-    updateGyroStatus('기준점이 설정되면 스마트폰을 기울여 이벤트를 발생시킬 수 있습니다.');
+    if(status1) status1.style.display = 'none';
+    if(status2) status2.style.display = 'none';
   }
+  if(e1) e1.textContent = '대기 중';
+  if(e2) e2.textContent = '대기 중';
 }
 
 /* 파란 공 위치 갱신 (normX, normY: -1 ~ 1) */
@@ -957,7 +964,8 @@ function updateGyroContactState(normX, normY){
 
 /* 디바이스 기울기 콜백
    - 세로/가로(0/90/180/270도)를 구분해서
-   - 항상 "화면의 위쪽"이 이벤트 상의 "앞쪽"이 되도록 좌표 변환 */
+   - 항상 "화면의 위쪽"이 이벤트 상의 "앞쪽"이 되도록 좌표 변환
+   - 앞/뒤가 반대로 느껴져서 forward0 부호를 뒤집어 사용 */
 function handleDeviceOrientation(event){
   if(!event) return;
   var beta = typeof event.beta === 'number' ? event.beta : null;   // 앞/뒤
@@ -977,22 +985,21 @@ function handleDeviceOrientation(event){
     gyroBaselineBeta = beta;
     gyroBaselineGamma = gamma;
     gyroBaselineSet = true;
-    updateGyroStatus('기준점 설정 완료. 스마트폰을 기울여 보세요.');
+    log('🎯 자이로 기준점 설정: beta='+beta.toFixed(1)+', gamma='+gamma.toFixed(1));
     updateGyroBallUI(0,0);
     gyroContactState.front = gyroContactState.back = gyroContactState.left = gyroContactState.right = false;
-    log('🎯 자이로 기준점 설정: beta='+beta.toFixed(1)+', gamma='+gamma.toFixed(1));
   }
   if(!isRunning || !gyroBaselineSet) return;
 
   var dBeta = beta - gyroBaselineBeta;
   var dGamma = gamma - gyroBaselineGamma;
 
-  // portrait(0도) 기준: forward=dBeta(화면 위/아래), side=dGamma(좌/우)
-  var forward0 = dBeta;
-  var side0 = dGamma;
+  // portrait(0도) 기준에서 dBeta 방향이 실제 앞/뒤와 반대로 느껴져서 부호를 반대로 사용
+  var forward0 = -dBeta; // 앞/뒤
+  var side0 = dGamma;    // 좌/우
   var forward, side;
 
-  // 화면 회전에 따른 좌표 변환
+  // 화면 회전에 따른 좌표 변환 (벡터 회전)
   if(angle === 0){
     side = side0;
     forward = forward0;
@@ -1071,9 +1078,7 @@ async function prepareGyroForRun(modeLabel){
   gyroBaselineSet = false;
   gyroContactState.front = gyroContactState.back = gyroContactState.left = gyroContactState.right = false;
   updateGyroBallUI(0,0);
-  if(ok){
-    updateGyroStatus(modeLabel + ' 모드: 기기를 수평으로 두고 기준점을 잡습니다.');
-  }else{
+  if(!ok){
     updateGyroStatus('자이로 권한 없음: 기울기 이벤트 없이 블록만 실행됩니다.');
   }
 }
@@ -1270,9 +1275,9 @@ function loadProject(){
     if('touches' in e) e.preventDefault();
     var delta = startY - y;
     var nh = startH + delta;
-    // 위/아래 패널 모두 충분히 작게/크게 갈 수 있도록 범위 완화
-    var minH=60;
-    var maxH=Math.max(minH+40, rightH - 60); // 위쪽은 최소 60px 남김
+    // 거의 끝까지 갈 수 있도록 범위 넓게 (위/아래 일부 잘려도 허용)
+    var minH=20;
+    var maxH=Math.max(minH+10, rightH - 20); // 위쪽은 최소 20px 남김
     nh=Math.min(maxH, Math.max(minH, nh));
     root.style.setProperty('--logH', nh+'px');
   }
@@ -1370,7 +1375,7 @@ async function processQueue(localToken){
 function triggerEvent(key){
   if(!isRunning) return;
   var entry = eventPrograms[key];
-  showEventOnUI(key); // 어떤 이벤트인지 표시
+  showEventOnUI(key);
   if(!entry || !entry.list || !entry.list.length) return;
   queue.push({list: entry.list});
   log('▶ 이벤트 실행: "'+ (entry.label || key) + '"');
@@ -1438,8 +1443,8 @@ document.addEventListener('keydown', (e)=>{
 /* 자이로 시스템 초기화 (DOM 준비 후) */
 initGyroSystem();
 
-/* ================= 음성 인식 (기존 코드 유지, 현재 UI는 사용하지 않음) ================= */
-var voiceBtn = document.getElementById('voiceBtn');
+/* ================= 음성 인식 (기존 구조 유지, 현재 UI는 사용 안 함) ================= */
+var voiceBtn = document.getElementById('voiceBtn'); // 존재하지 않아도 무시됨
 var voiceStatus = document.getElementById('voiceStatus');
 var voiceText = document.getElementById('voiceText');
 
@@ -1453,7 +1458,6 @@ var listenTimer = null;
 var lastTranscript = '';
 
 function updateVoiceUI(state, msg){
-  // 패널 쪽
   if(voiceStatus){
     if(state === 'idle')      voiceStatus.textContent = '대기 중';
     else if(state === 'listening') voiceStatus.textContent = '듣는 중... (최대 3초)';
@@ -1461,7 +1465,6 @@ function updateVoiceUI(state, msg){
     else if(state === 'done')      voiceStatus.textContent = '인식 완료';
     else if(state === 'error')     voiceStatus.textContent = '오류';
   }
-  // 전체화면 쪽
   if(overlayVoiceStatus){
     if(state === 'idle')      overlayVoiceStatus.textContent = '대기 중';
     else if(state === 'listening') overlayVoiceStatus.textContent = '듣는 중... (최대 3초)';
@@ -1479,8 +1482,6 @@ function updateVoiceUI(state, msg){
 function ensureSpeechRecognition(){
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if(!SR){
-    // 음성 미지원 브라우저일 때만 알림
-    // alert('이 브라우저는 음성 인식을 지원하지 않습니다.\n(Chrome / Edge 기반 브라우저를 사용해 주세요)');
     return null;
   }
   if(!recognition){
@@ -1573,9 +1574,9 @@ if(overlayVoiceBtn) overlayVoiceBtn.addEventListener('click', startVoiceRecognit
   }, {passive:true});
 })();
 
-/* 음성 결과 → 이벤트 매칭 (필요시 그대로 사용 가능) */
+/* 음성 결과 → 이벤트 매칭 (현재는 안내만) */
 function handleVoiceCommand(text){
-  var key = normalizeTrigger(text);
+  var key = (text || '').toLowerCase().replace(/\s+/g,'');
   if(!key){
     log('🎙 인식 결과가 비어 있습니다.');
     return;
@@ -1587,8 +1588,6 @@ function handleVoiceCommand(text){
     return;
   }
 
-  // 지금 구조는 자이로/버튼 이벤트 전용이므로
-  // 음성과 이벤트를 직접 연결하지 않고 안내만 남겨둡니다.
   log('ℹ️ 현재 프로젝트는 자이로/버튼 이벤트 전용입니다. 음성 이벤트는 매핑되지 않았습니다.');
 }
 
@@ -2044,8 +2043,7 @@ function handleVoiceCommand(text){
     if(proto.__xrobo_kp4x4_patched) return;
     proto.__xrobo_kp4x4_patched = true;
 
-    const origShow = proto.showEditor_;
-    proto.__xrobo_kp4x4_origShowEditor = origShow;
+    proto.__xrobo_kp4x4_origShowEditor = proto.showEditor_;
 
     proto.showEditor_ = function(){
       openForField(this);
