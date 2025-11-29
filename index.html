@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8" />
-<title>XROBO BLE — 자이로 센서 제어 v3</title>
+<title>XROBO BLE — 자이로 센서 v5</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
 <script src="https://unpkg.com/blockly/blockly.min.js"></script>
 <style>
@@ -29,6 +29,14 @@
     --triW:    calc(var(--triWBase)    * var(--uiScale) * 1px);
     --triH:    calc(var(--triHBase)    * var(--uiScale) * 1px);
     --linkBar: calc(3 * var(--uiScale) * 1px);
+
+    --keyW: clamp(52px, 8vmin, 92px);
+    --keyH: calc(var(--keyW) * 2.7);
+    --keyGap: 6px;
+    --keyFont: 14px;
+  }
+  @media (max-width: 480px){
+    :root{ --keyGap: 4px; --keyFont: 13px; }
   }
 
   *{ box-sizing:border-box; }
@@ -38,12 +46,12 @@
   /* ── 헤더 ───────────────────────────────── */
   header{
     padding: 8px 12px;
-    background: linear-gradient(180deg, #fff7ed, #fffbeb);
-    border-bottom: 1px solid #fed7aa;
+    background: linear-gradient(180deg, var(--headerBgTop), var(--headerBgBottom));
+    border-bottom: 1px solid var(--headerBorder);
     position:relative; z-index:10;
   }
   #topbar{
-    display:flex; align-items:center; gap: calc(8px * var(--uiScale));
+    display:flex; align-items:center; gap: calc(var(--gap) * var(--uiScale));
     flex-wrap: wrap;
   }
   .title{
@@ -63,6 +71,7 @@
     background:#f3f4f6; color:#111827; cursor:pointer;
     user-select:none;
   }
+  .btn.small{ height: calc(var(--btnH) * var(--uiScale) * .85); padding: 0 calc(10px * var(--uiScale)); font-size: calc(12px * var(--uiScale)); }
   #connectToggle{ background:#2563eb; color:#fff; }
   #testBtn{ background:#0ea5e9; color:#fff; }
   #runToggle{ background:#16a34a; color:#fff; }
@@ -101,114 +110,156 @@
   /* ── 우측 상단: 자이로 패널 ── */
   #rightTop{
     flex:1 1 auto; border-bottom:1px solid #e5e7eb; min-height: 120px;
-    background:#000; color:#fff;
+    background:#020617; color:#fff;
     display:flex; align-items:center; justify-content:center;
-    padding: 0;
-    overflow:hidden;
+    padding: 0; overflow:hidden;
   }
 
-  .gyroPanel{
+  .gyroWrap{
+    position:relative;
     width:100%;
     height:100%;
     display:flex;
     flex-direction:column;
     align-items:center;
     justify-content:center;
-    padding:16px;
     gap:10px;
-    box-sizing:border-box;
+    padding:10px;
   }
-  .gyroGuide{
-    font-size:13px;
-    color:#e5e7eb;
-    text-align:center;
-    opacity:0.9;
-    margin-bottom:4px;
-  }
-  .gyroBoardWrapper{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:clamp(12px, 4vmin, 32px);
-    width:100%;
-  }
-  .gyroBoard{
-    position:relative;
-    width:min(70vmin, 80vw, 420px);
-    max-width:100%;
-    aspect-ratio:1/1;
-    border-radius:6px;
-    border:2px solid #9ca3af;
-    background:#020617;
-    box-shadow:0 12px 30px rgba(0,0,0,.8);
-    overflow:hidden;
-  }
-  .gyroTarget{
-    position:absolute;
-    width:36%;
-    height:36%;
-    border-radius:50%;
-    border:2px solid rgba(148,163,184,.7);
-    background:transparent;
-    box-sizing:border-box;
-  }
-  .gyroTarget.front{ top:6%; left:50%; transform:translateX(-50%); }
-  .gyroTarget.back{ bottom:6%; left:50%; transform:translateX(-50%); }
-  .gyroTarget.left{ left:6%; top:50%; transform:translateY(-50%); }
-  .gyroTarget.right{ right:6%; top:50%; transform:translateY(-50%); }
-  .gyroTarget.active{
-    border-color:#60a5fa;
-    box-shadow:0 0 0 3px rgba(37,99,235,.6) inset;
+  .gyroWrap.full{
+    max-width:640px;
+    margin:0 auto;
   }
 
+  /* 안내 문구 – 절대 위치, 보드 위에 겹침, 비율에 영향 없음 */
+  .gyroGuide{
+    position:absolute;
+    top:8px;
+    left:50%;
+    transform:translateX(-50%);
+    max-width:90%;
+    padding:4px 10px;
+    border-radius:999px;
+    background:rgba(15,23,42,.8);
+    font-size:12px;
+    color:#cbd5f5;
+    text-align:center;
+    pointer-events:none;
+    z-index:8;  /* 자이로 리모컨보다 항상 앞 */
+  }
+
+  /* 정사각형 보드 (자이로 이미지 영역) */
+  .gyroCanvas{
+    position:relative;
+    width:min(80vmin, 100%);
+    aspect-ratio:1 / 1;
+    border-radius:18px;
+    background:#000;
+    border:2px solid rgba(148,163,184,.9);
+    overflow:hidden;
+    box-shadow:0 18px 40px rgba(0,0,0,.7);
+  }
+  .gyroWrap.full .gyroCanvas{
+    width:min(90vmin, 90vw, 90vh);
+  }
+
+  /* 파란 공 */
   .gyroBall{
     position:absolute;
-    left:50%;
     top:50%;
-    width:18%;
-    height:18%;
+    left:50%;
+    width:40px;
+    height:40px;
     border-radius:50%;
-    background:#1d4ed8;
-    box-shadow:0 8px 18px rgba(0,0,0,.8);
-    transform:translate(-50%, -50%);
-    transition: transform 80ms linear;
+    background:#22a3ff;
+    box-shadow:0 0 0 4px rgba(37,99,235,.55), 0 14px 36px rgba(0,0,0,.9);
+    transform:translate(-50%,-50%);
+    transition: transform .06s linear;
+    z-index:3;
   }
 
-  .gyroBtn{
-    width:clamp(40px, 11vmin, 72px);
-    height:clamp(40px, 11vmin, 72px);
-    border-radius:18%;
-    border:2px solid #9ca3af;
+  /* 투명 동그라미 */
+  .gyroTarget{
+    position:absolute;
+    width:80px;
+    height:80px;
+    border-radius:50%;
+    border:2px solid rgba(209,213,219,.85);
     background:transparent;
-    color:#f9fafb;
-    font-size:clamp(18px, 4vmin, 24px);
-    font-weight:700;
+    box-shadow:0 0 0 1px rgba(31,41,55,.9) inset;
+    pointer-events:none;
+    z-index:1;
+  }
+  .gyroTarget.front{
+    top:18%; left:50%;
+    transform:translate(-50%,-50%);
+  }
+  .gyroTarget.back{
+    bottom:18%; left:50%;
+    transform:translate(-50%,50%);
+  }
+  .gyroTarget.left{
+    left:18%; top:50%;
+    transform:translate(-50%,-50%);
+  }
+  .gyroTarget.right{
+    right:18%; top:50%;
+    transform:translate(50%,-50%);
+  }
+
+  /* 1,2번 버튼 – 비율 고정 */
+  .gyroBtn{
+    position:absolute;
+    top:6%;
+    width:14%;
+    aspect-ratio:1 / 1;
+    border-radius:12px;
+    border:2px solid rgba(209,213,219,.9);
+    background:#020617;
+    color:#e5e7eb;
+    font-size:clamp(12px, 2.8vmin, 16px);
+    font-weight:800;
     display:flex;
     align-items:center;
     justify-content:center;
-    box-shadow:0 6px 16px rgba(0,0,0,.7);
     cursor:pointer;
+    box-shadow:0 10px 20px rgba(0,0,0,.8);
+    z-index:4;
   }
+  .gyroBtn1{ left:6%; }
+  .gyroBtn2{ right:6%; }
   .gyroBtn:active{
     transform:translateY(1px);
-    box-shadow:0 3px 10px rgba(0,0,0,.7);
+    box-shadow:0 4px 12px rgba(0,0,0,.8);
   }
 
-  .gyroStatusBox{
-    min-width:96px;
-    padding:6px 14px;
-    border-radius:10px;
+  /* “대기 중” 박스 – 자이로 위에 겹치지만 레이아웃 영향 없음 */
+  .gyroWaitBox{
+    position:absolute;
+    top:6%;
+    left:50%;
+    transform:translateX(-50%);
+    padding:4px 10px;
+    border-radius:999px;
     border:1px solid rgba(148,163,184,.7);
-    background:rgba(15,23,42,0.5);
-    font-size:13px;
-    text-align:center;
-    margin-top:8px;
+    background:rgba(15,23,42,.75);
+    font-size:11px;
+    color:#e5e7eb;
+    pointer-events:none;
+    z-index:7;   /* 버튼/공보다 항상 앞 */
+    white-space:nowrap;
   }
-  .gyroStatusBox span{ color:#e5e7eb; }
 
-  /* 전체화면에서는 보드 조금 더 크게 */
-  #playOverlay .gyroBoard{
-    width:min(80vmin, 80vw, 520px);
+  /* 이벤트 텍스트 – 보드 아래 */
+  .gyroStatus{
+    font-size:12px;
+    color:#e5e7eb;
+    text-align:center;
+    min-height:1.4em;
+  }
+  .gyroEventText{
+    font-weight:600;
+    color:#facc15;
   }
 
   /* 리사이저 바 */
@@ -258,6 +309,8 @@
     border-width: var(--triH) var(--triW) var(--triH) 0;
     border-color: transparent white transparent transparent;
   }
+  .blocklyZoom,.blocklyTrash{ display:block !important; }
+  .blocklyTrashLid, .blocklyTrashcanLid, .blocklyTrashCanLid { display:none !important; }
 
   body.fs-active #main{ height: calc(100vh - var(--headerH)); }
   body.panel-collapsed #right{ display:none; }
@@ -351,7 +404,7 @@
   <!-- 헤더 -->
   <header id="appHeader">
     <div id="topbar">
-      <div class="title">XROBO BLE — 자이로 센서 제어 v3</div>
+      <div class="title">XROBO BLE — 자이로 센서 v5</div>
       <div class="spacer"></div>
 
       <!-- 파일 드롭다운 -->
@@ -386,23 +439,36 @@
     <div id="right">
       <!-- 우측 상단: 자이로 패널 -->
       <div id="rightTop">
-        <div class="gyroPanel" id="gyroPanel">
-          <div id="gyroGuide" class="gyroGuide">
+        <div class="gyroWrap" id="gyroWrap">
+          <!-- 안내 문구 (보드 위로 겹침) -->
+          <div class="gyroGuide" id="gyroInfoText">
             테스트나 실행을 누르기 전에 수평을 맞춰 주세요.
           </div>
-          <div class="gyroBoardWrapper">
-            <button id="gyroBtn1" class="gyroBtn" type="button">1</button>
-            <div class="gyroBoard" id="gyroBoard">
-              <div id="gyroTargetFront" class="gyroTarget front"></div>
-              <div id="gyroTargetBack" class="gyroTarget back"></div>
-              <div id="gyroTargetLeft" class="gyroTarget left"></div>
-              <div id="gyroTargetRight" class="gyroTarget right"></div>
-              <div id="gyroBall" class="gyroBall"></div>
+
+          <!-- 보드 -->
+          <div class="gyroCanvas" id="gyroCanvas">
+            <!-- 1, 2번 버튼 -->
+            <button id="gyroBtn1" type="button" class="gyroBtn gyroBtn1">1</button>
+            <button id="gyroBtn2" type="button" class="gyroBtn gyroBtn2">2</button>
+
+            <!-- 투명 동그라미 4개 -->
+            <div class="gyroTarget front" data-dir="front"></div>
+            <div class="gyroTarget back"  data-dir="back"></div>
+            <div class="gyroTarget left"  data-dir="left"></div>
+            <div class="gyroTarget right" data-dir="right"></div>
+
+            <!-- 파란 공 -->
+            <div class="gyroBall" id="gyroBall"></div>
+
+            <!-- 대기 중 박스 -->
+            <div class="gyroWaitBox" id="gyroWaitBox">
+              <span id="gyroWaitText">대기 중</span>
             </div>
-            <button id="gyroBtn2" class="gyroBtn" type="button">2</button>
           </div>
-          <div class="gyroStatusBox">
-            <span id="gyroStatusText">대기중</span>
+
+          <!-- 이벤트 표시 -->
+          <div class="gyroStatus">
+            <div id="gyroEventText" class="gyroEventText">이벤트: -</div>
           </div>
         </div>
       </div>
@@ -453,23 +519,27 @@
   <!-- 전체화면 오버레이: 자이로 UI -->
   <div id="playOverlay" aria-hidden="true">
     <div class="body">
-      <div class="gyroPanel" id="overlayGyroPanel">
-        <div id="overlayGyroGuide" class="gyroGuide">
+      <div id="gyroOverlayWrap" class="gyroWrap full">
+        <div class="gyroGuide" id="gyroOverlayInfoText">
           테스트나 실행을 누르기 전에 수평을 맞춰 주세요.
         </div>
-        <div class="gyroBoardWrapper">
-          <button id="overlayGyroBtn1" class="gyroBtn" type="button">1</button>
-          <div class="gyroBoard" id="overlayGyroBoard">
-            <div id="overlayGyroTargetFront" class="gyroTarget front"></div>
-            <div id="overlayGyroTargetBack" class="gyroTarget back"></div>
-            <div id="overlayGyroTargetLeft" class="gyroTarget left"></div>
-            <div id="overlayGyroTargetRight" class="gyroTarget right"></div>
-            <div id="overlayGyroBall" class="gyroBall"></div>
+        <div class="gyroCanvas" id="gyroOverlayCanvas">
+          <button id="gyroOverlayBtn1" type="button" class="gyroBtn gyroBtn1">1</button>
+          <button id="gyroOverlayBtn2" type="button" class="gyroBtn gyroBtn2">2</button>
+
+          <div class="gyroTarget front" data-dir="front"></div>
+          <div class="gyroTarget back"  data-dir="back"></div>
+          <div class="gyroTarget left"  data-dir="left"></div>
+          <div class="gyroTarget right" data-dir="right"></div>
+
+          <div class="gyroBall" id="gyroOverlayBall"></div>
+
+          <div class="gyroWaitBox" id="gyroOverlayWaitBox">
+            <span id="gyroOverlayWaitText">대기 중</span>
           </div>
-          <button id="overlayGyroBtn2" class="gyroBtn" type="button">2</button>
         </div>
-        <div class="gyroStatusBox">
-          <span id="overlayGyroStatusText">대기중</span>
+        <div class="gyroStatus">
+          <div id="gyroOverlayEventText" class="gyroEventText">이벤트: -</div>
         </div>
       </div>
     </div>
@@ -539,24 +609,39 @@ var LED_TGT=[].concat(PINS_OUT,[["CPU","CPU"]]);
 var LED_MODE=[["밝기","BRIGHT"],["숨쉬기","BREATHE"]];
 var LED_VALS=Array.from({length:20},(_,i)=>[String(i),String(i)]);
 
+/* 자이로 이벤트 옵션 */
 var GYRO_EVENT_OPTIONS = [
-  ["앞쪽으로 기울면","tilt_front"],
-  ["뒤쪽으로 기울면","tilt_back"],
-  ["왼쪽으로 기울면","tilt_left"],
-  ["오른쪽으로 기울면","tilt_right"],
-  ["1번 버튼을 누르면","btn1"],
-  ["2번 버튼을 누르면","btn2"]
+  ["앞쪽으로 기울면","TILT_FRONT"],
+  ["뒤쪽으로 기울면","TILT_BACK"],
+  ["왼쪽으로 기울면","TILT_LEFT"],
+  ["오른쪽으로 기울면","TILT_RIGHT"],
+  ["1번 버튼을 누르면","BTN1"],
+  ["2번 버튼을 누르면","BTN2"]
 ];
 var GYRO_EVENT_LABELS = {};
-GYRO_EVENT_OPTIONS.forEach(function(o){ GYRO_EVENT_LABELS[o[1]] = o[0]; });
+for(var i=0;i<GYRO_EVENT_OPTIONS.length;i++){
+  GYRO_EVENT_LABELS[GYRO_EVENT_OPTIONS[i][1]] = GYRO_EVENT_OPTIONS[i][0];
+}
+
+/* 안내 기본 문구 */
+var GYRO_GUIDE_TEXT = '테스트나 실행을 누르기 전에 수평을 맞춰 주세요.';
+
+/* 범위/클램프 유틸 */
+function clampVal(v, min, max){
+  return v < min ? min : (v > max ? max : v);
+}
 
 /* ================= 블록 정의 ================= */
 Blockly.defineBlocksWithJsonArray([
   {
     "type":"xrobo_start",
-    "message0":"%1 이벤트가 발생하면",
+    "message0":"%1 때",
     "args0":[
-      { "type":"field_dropdown","name":"EVT","options":GYRO_EVENT_OPTIONS }
+      {
+        "type":"field_dropdown",
+        "name":"EVT",
+        "options": GYRO_EVENT_OPTIONS
+      }
     ],
     "nextStatement":null,
     "colour":36,
@@ -700,16 +785,15 @@ function buildEventPrograms(){
   var evs = ws.getBlocksByType('xrobo_start', true);
   for(var i=0;i<evs.length;i++){
     var block = evs[i];
-    var key = block.getFieldValue('EVT');
-    if(!key) continue;
+    var code = block.getFieldValue('EVT') || '';
+    if(!code) continue;
     var chain = block.getNextBlock();
     if(!chain) continue;
     var prog=[];
     walkChain(chain, prog);
     var norm = normalizeProgram(prog);
-    var label = GYRO_EVENT_LABELS[key] || key;
-    if(!map[key]) map[key] = { label: label, list: [] };
-    map[key].list = map[key].list.concat(norm);
+    if(!map[code]) map[code] = { label: (GYRO_EVENT_LABELS[code] || code), list: [] };
+    map[code].list = map[code].list.concat(norm);
   }
   return map;
 }
@@ -749,39 +833,6 @@ var btnConnect=$('connectToggle'), btnRun=$('runToggle'), btnTest=$('testBtn');
 var enc = s=> new TextEncoder().encode(s);
 
 function resetBleRefs(){ bleDevice=null; bleServer=null; bleService=null; writeChar=null; notifyChar=null; }
-
-/* ====== 자이로 UI 헬퍼 ====== */
-function setGyroGuideVisible(show){
-  ['gyroGuide','overlayGyroGuide'].forEach(function(id){
-    var el=$(id);
-    if(el) el.style.display = show ? 'block' : 'none';
-  });
-}
-function setGyroStatusText(text){
-  ['gyroStatusText','overlayGyroStatusText'].forEach(function(id){
-    var el=$(id);
-    if(el) el.textContent = text;
-  });
-}
-function labelForEventKey(key){
-  return (eventPrograms && eventPrograms[key] && eventPrograms[key].label) ||
-         GYRO_EVENT_LABELS[key] || key;
-}
-function showEventOnUI(key){
-  var label = labelForEventKey(key);
-  setGyroStatusText(label);
-}
-function updateGyroRunningState(on){
-  if(on){
-    setGyroGuideVisible(false);
-  }else{
-    setGyroGuideVisible(true);
-    setGyroStatusText('대기중');
-    ['front','back','left','right'].forEach(function(dir){ highlightTarget(dir,false); });
-    updateGyroBallUI(0,0);
-  }
-}
-
 function setConnected(v){
   isConnected=v;
   btnConnect.textContent=v?'해제':'연결';
@@ -791,247 +842,18 @@ function setConnected(v){
   if(!v) setRunning(false);
 }
 
-/* ====== 자이로 센서/이벤트 처리 ====== */
-var gyroSupported = ('DeviceOrientationEvent' in window);
-var gyroPermissionState = 'unknown';
-var gyroOrientationListenerAdded = false;
-var gyroBaselineBeta = 0;
-var gyroBaselineGamma = 0;
-var gyroBaselineSet = false;
-var pendingGyroCalibration = false;
-
-var GYRO_MAX_TILT = 25;
-var GYRO_DEAD_ZONE = 4;
-var GYRO_HIT_THRESHOLD = 0.6;
-
-var gyroContactState = {front:false, back:false, left:false, right:false};
-
-function getScreenAngle(){
-  var angle = 0;
-  try{
-    if(window.screen && screen.orientation && typeof screen.orientation.angle === 'number'){
-      angle = screen.orientation.angle || 0;
-    }else if(typeof window.orientation === 'number'){
-      angle = window.orientation || 0;
-    }
-  }catch(e){ angle = 0; }
-  angle = ((angle % 360) + 360) % 360;
-  if(angle >= 315 || angle < 45) return 0;
-  if(angle >= 45 && angle < 135) return 90;
-  if(angle >= 135 && angle < 225) return 180;
-  return 270;
-}
-var lastScreenAngle = getScreenAngle();
-
-function updateGyroBallUI(normX, normY){
-  var displayY = -normY;
-  var views = [
-    {boardId:'gyroBoard', ballId:'gyroBall'},
-    {boardId:'overlayGyroBoard', ballId:'overlayGyroBall'}
-  ];
-  for(var i=0;i<views.length;i++){
-    var board=$(views[i].boardId), ball=$(views[i].ballId);
-    if(!board || !ball) continue;
-    var rect = board.getBoundingClientRect();
-    var size = Math.min(rect.width || 0, rect.height || 0);
-    if(size <= 0) continue;
-    var maxOffset = size * 0.28;
-    var x = maxOffset * normX;
-    var y = maxOffset * displayY;
-    ball.style.transform = 'translate(-50%, -50%) translate('+x.toFixed(1)+'px,'+y.toFixed(1)+'px)';
-  }
-}
-
-function highlightTarget(dir, on){
-  var ids=null;
-  if(dir==='front') ids=['gyroTargetFront','overlayGyroTargetFront'];
-  else if(dir==='back') ids=['gyroTargetBack','overlayGyroTargetBack'];
-  else if(dir==='left') ids=['gyroTargetLeft','overlayGyroTargetLeft'];
-  else if(dir==='right') ids=['gyroTargetRight','overlayGyroTargetRight'];
-  if(!ids) return;
-  ids.forEach(function(id){
-    var el=$(id);
-    if(el) el.classList.toggle('active', !!on);
-  });
-}
-
-function fireGyroLogicalEvent(key){
-  if(!isRunning) return;
-  showEventOnUI(key);
-  var label = labelForEventKey(key);
-  log('🎮 센서 이벤트: '+label+' ('+key+')');
-  triggerEvent(key);
-}
-function fireGyroDirectionEvent(dir){
-  var key=null;
-  if(dir==='front') key='tilt_front';
-  else if(dir==='back') key='tilt_back';
-  else if(dir==='left') key='tilt_left';
-  else if(dir==='right') key='tilt_right';
-  if(key) fireGyroLogicalEvent(key);
-}
-
-function updateGyroContactState(normX, normY){
-  var newFront = normY >=  GYRO_HIT_THRESHOLD;
-  var newBack  = normY <= -GYRO_HIT_THRESHOLD;
-  var newLeft  = normX <= -GYRO_HIT_THRESHOLD;
-  var newRight = normX >=  GYRO_HIT_THRESHOLD;
-
-  if(newFront !== gyroContactState.front){
-    gyroContactState.front = newFront;
-    highlightTarget('front', newFront);
-    if(newFront) fireGyroDirectionEvent('front');
-  }
-  if(newBack !== gyroContactState.back){
-    gyroContactState.back = newBack;
-    highlightTarget('back', newBack);
-    if(newBack) fireGyroDirectionEvent('back');
-  }
-  if(newLeft !== gyroContactState.left){
-    gyroContactState.left = newLeft;
-    highlightTarget('left', newLeft);
-    if(newLeft) fireGyroDirectionEvent('left');
-  }
-  if(newRight !== gyroContactState.right){
-    gyroContactState.right = newRight;
-    highlightTarget('right', newRight);
-    if(newRight) fireGyroDirectionEvent('right');
-  }
-}
-
-function handleDeviceOrientation(event){
-  if(!event) return;
-  var beta  = typeof event.beta  === 'number' ? event.beta  : null;
-  var gamma = typeof event.gamma === 'number' ? event.gamma : null;
-  if(beta===null || gamma===null) return;
-
-  var angle = getScreenAngle();
-  if(angle !== lastScreenAngle){
-    lastScreenAngle = angle;
-    gyroBaselineSet = false;
-    pendingGyroCalibration = true;
-  }
-
-  if(pendingGyroCalibration){
-    pendingGyroCalibration = false;
-    gyroBaselineBeta = beta;
-    gyroBaselineGamma = gamma;
-    gyroBaselineSet = true;
-    gyroContactState.front = gyroContactState.back =
-      gyroContactState.left = gyroContactState.right = false;
-    updateGyroBallUI(0,0);
-    log('🎯 자이로 기준점 설정: beta='+beta.toFixed(1)+', gamma='+gamma.toFixed(1));
-  }
-  if(!isRunning || !gyroBaselineSet) return;
-
-  var dBeta  = beta  - gyroBaselineBeta;
-  var dGamma = gamma - gyroBaselineGamma;
-
-  var forward0 = dBeta;
-  var side0 = dGamma;
-  var forward, side;
-
-  if(angle === 0){
-    side = side0;
-    forward = forward0;
-  }else if(angle === 90){
-    side = forward0;
-    forward = -side0;
-  }else if(angle === 180){
-    side = -side0;
-    forward = -forward0;
-  }else{
-    side = -forward0;
-    forward = side0;
-  }
-
-  // X축은 부호를 반대로 해서 실제 왼/오 방향과 맞춤
-  var normX = -side / GYRO_MAX_TILT;
-  var normY = -forward / GYRO_MAX_TILT;
-
-  if(Math.abs(side) < GYRO_DEAD_ZONE) normX = 0;
-  if(Math.abs(forward) < GYRO_DEAD_ZONE) normY = 0;
-
-  if(normX > 1) normX = 1; else if(normX < -1) normX = -1;
-  if(normY > 1) normY = 1; else if(normY < -1) normY = -1;
-
-  updateGyroBallUI(normX, normY);
-  updateGyroContactState(normX, normY);
-}
-
-function setupOrientationListener(){
-  if(gyroOrientationListenerAdded || !gyroSupported) return;
-  window.addEventListener('deviceorientation', handleDeviceOrientation, true);
-  gyroOrientationListenerAdded = true;
-}
-
-async function ensureGyroPermission(){
-  if(!gyroSupported){
-    gyroPermissionState = 'not_supported';
-    log('⚠️ 이 기기는 자이로/기울기 센서를 지원하지 않습니다.');
-    return false;
-  }
-  try{
-    if(typeof DeviceOrientationEvent !== 'undefined' &&
-       typeof DeviceOrientationEvent.requestPermission === 'function'){
-      if(gyroPermissionState === 'granted'){
-        setupOrientationListener();
-        return true;
-      }
-      var res = await DeviceOrientationEvent.requestPermission();
-      gyroPermissionState = res === 'granted' ? 'granted' : 'denied';
-      if(gyroPermissionState === 'granted'){
-        setupOrientationListener();
-        return true;
-      }
-      log('⚠️ 자이로 권한 거부: '+res);
-      return false;
-    }else{
-      gyroPermissionState = 'granted';
-      setupOrientationListener();
-      return true;
-    }
-  }catch(e){
-    gyroPermissionState = 'denied';
-    log('⚠️ 자이로 권한 오류: '+e);
-    return false;
-  }
-}
-
-async function prepareGyroForRun(){
-  var ok = await ensureGyroPermission();
-  pendingGyroCalibration = ok;
-  gyroBaselineSet = false;
-  gyroContactState.front = gyroContactState.back =
-    gyroContactState.left = gyroContactState.right = false;
-  updateGyroBallUI(0,0);
-  if(ok){
-    log('🎯 자이로 준비 완료: 기기를 수평으로 두면 기준점을 잡습니다.');
-  }else{
-    log('⚠️ 자이로 권한 없음: 기울기 이벤트 없이 버튼 이벤트만 동작합니다.');
-  }
-}
-
-function initGyroSystem(){
-  setGyroGuideVisible(true);
-  setGyroStatusText('대기중');
-  updateGyroBallUI(0,0);
-
-  var b1=$('gyroBtn1'), b2=$('gyroBtn2');
-  if(b1) b1.addEventListener('click', function(e){ e.stopPropagation(); fireGyroLogicalEvent('btn1'); });
-  if(b2) b2.addEventListener('click', function(e){ e.stopPropagation(); fireGyroLogicalEvent('btn2'); });
-  var ob1=$('overlayGyroBtn1'), ob2=$('overlayGyroBtn2');
-  if(ob1) ob1.addEventListener('click', function(e){ e.stopPropagation(); fireGyroLogicalEvent('btn1'); });
-  if(ob2) ob2.addEventListener('click', function(e){ e.stopPropagation(); fireGyroLogicalEvent('btn2'); });
-}
-
-/* ================= 실행 상태 ================= */
+/* 실행 상태 토글 */
 function setRunning(v){
   isRunning=v;
   btnRun.textContent = v ? '■ 정지' : '실행';
   btnRun.style.background = v ? '#ef4444' : '#16a34a';
   btnTest.disabled = v;
-  updateGyroRunningState(v);
+
+  // 실행 중일 때 안내 문구 숨김
+  var infoEl = document.getElementById('gyroInfoText');
+  var infoEl2 = document.getElementById('gyroOverlayInfoText');
+  if(infoEl)  infoEl.style.display  = v ? 'none' : 'block';
+  if(infoEl2) infoEl2.style.display = v ? 'none' : 'block';
 }
 
 /* BLE connect/disconnect */
@@ -1171,15 +993,14 @@ function loadProject(){
 (function(){
   var divider = document.getElementById('rightDivider');
   var root = document.documentElement;
-  var dragging=false, startY=0, startH=0;
-
+  var dragging=false, startY=0, startH=0, rightH=0;
   function pxToNum(px){ return Number(String(px).replace('px',''))||0; }
-
   function onDown(e){
     e.preventDefault();
     dragging=true;
     startY=('touches' in e ? e.touches[0].clientY : e.clientY);
     startH=pxToNum(getComputedStyle(root).getPropertyValue('--logH'));
+    rightH=document.getElementById('right').clientHeight;
     window.addEventListener('mousemove', onMove);
     window.addEventListener('touchmove', onMove, {passive:false});
     window.addEventListener('mouseup', onUp, {once:true});
@@ -1191,14 +1012,10 @@ function loadProject(){
     if('touches' in e) e.preventDefault();
     var delta = startY - y;
     var nh = startH + delta;
-
-    var rightEl = document.getElementById('right');
-    var rightH = rightEl ? rightEl.clientHeight : 0;
-    var topMin = 440;             // 자이로 보드가 잘리지 않도록 위 패널 최소 높이
-    var maxH = Math.max(0, rightH - topMin);
-    if(nh < 0) nh = 0;
+    var minH = 0;
+    var maxH = Math.max(0, rightH);
+    if(nh < minH) nh = minH;
     if(nh > maxH) nh = maxH;
-
     root.style.setProperty('--logH', nh+'px');
   }
   function onUp(){
@@ -1246,32 +1063,6 @@ fsBtn.onclick=async function(){
 };
 document.addEventListener('fullscreenchange', syncFSLabel);
 syncFSLabel();
-
-/* ====== 전체화면 실행용 화면 회전 고정 ====== */
-var lockedOrientation = null;
-async function lockScreenOrientationForRun(){
-  try{
-    if(!screen.orientation || !screen.orientation.lock) return;
-    var t = screen.orientation.type || '';
-    var target;
-    if(t.indexOf('portrait') === 0)      target = 'portrait-primary';
-    else if(t.indexOf('landscape') === 0) target = 'landscape-primary';
-    else target = (window.innerWidth > window.innerHeight) ? 'landscape-primary' : 'portrait-primary';
-    await screen.orientation.lock(target);
-    lockedOrientation = target;
-  }catch(e){
-    console.warn('orientation lock failed', e);
-    lockedOrientation = null;
-  }
-}
-async function unlockScreenOrientationForRun(){
-  try{
-    if(screen.orientation && screen.orientation.unlock && lockedOrientation){
-      screen.orientation.unlock();
-    }
-  }catch(e){}
-  lockedOrientation = null;
-}
 
 /* ================= 실행/큐 & 이벤트 매핑 ================= */
 var eventPrograms = {};
@@ -1321,12 +1112,398 @@ async function processQueue(localToken){
 function triggerEvent(key){
   if(!isRunning) return;
   var entry = eventPrograms[key];
-  showEventOnUI(key);
   if(!entry || !entry.list || !entry.list.length) return;
   queue.push({list: entry.list});
   log('▶ 이벤트 실행: "'+ (entry.label || key) + '"');
   var myToken = cancelToken;
   processQueue(myToken);
+}
+
+/* ================= 자이로 UI & 센서 ================= */
+var gyroSupported = (typeof window !== 'undefined' && 'DeviceOrientationEvent' in window);
+var gyroPermissionState = 'unknown';
+var gyroListenerAdded = false;
+var gyroActive = false;
+var gyroMode = 'panel';
+var gyroBaselineFront = 0;
+var gyroBaselineSide  = 0;
+var gyroBaselineSet   = false;
+var gyroNeedsCalibrate = false;
+var gyroInsideFlags = {front:false,back:false,left:false,right:false};
+var gyroState = { panel:null, overlay:null };
+
+var GYRO_FRONT_RANGE = 20;
+var GYRO_SIDE_RANGE  = 20;
+
+var orientationLockedType = null;
+
+/* 현재 화면 회전 각도 */
+function getScreenAngle(){
+  var ang = 0;
+  try{
+    if(window.screen && screen.orientation && typeof screen.orientation.angle === 'number'){
+      ang = screen.orientation.angle;
+    }else if(typeof window.orientation === 'number'){
+      ang = window.orientation;
+    }
+  }catch(e){}
+  ang = ((ang % 360) + 360) % 360;
+  if(ang===0 || ang===90 || ang===180 || ang===270) return ang;
+  return 0;
+}
+
+/* beta/gamma → 화면 기준 front/side */
+function mapTiltAxes(beta, gamma){
+  var angle = getScreenAngle();
+  var front, side;
+  switch(angle){
+    case 90:   // 가로(오른쪽이 위)
+      front =  gamma;
+      side  = -beta;
+      break;
+    case 180:  // 세로 뒤집힘
+      front = -beta;
+      side  = -gamma;
+      break;
+    case 270:  // 가로(왼쪽이 위)
+      front = -gamma;
+      side  =  beta;
+      break;
+    default:   // 세로
+      front = beta;
+      side  = gamma;
+      break;
+  }
+  return { front:front, side:side };
+}
+
+/* 자이로 뷰 생성 */
+function createGyroView(rootId, ballId, btn1Id, btn2Id, infoId, eventId){
+  var root = document.getElementById(rootId);
+  if(!root) return null;
+  var canvas = root.querySelector('.gyroCanvas');
+  var ball = document.getElementById(ballId);
+  var btn1 = document.getElementById(btn1Id);
+  var btn2 = document.getElementById(btn2Id);
+  var infoEl = document.getElementById(infoId);
+  var eventEl = document.getElementById(eventId);
+  var targets = {};
+  if(canvas && canvas.querySelectorAll){
+    var els = canvas.querySelectorAll('.gyroTarget');
+    for(var i=0;i<els.length;i++){
+      var dir = els[i].getAttribute('data-dir');
+      if(dir) targets[dir] = els[i];
+    }
+  }
+  if(btn1){
+    btn1.addEventListener('click', function(ev){
+      ev.stopPropagation();
+      triggerGyroButton(1);
+    });
+  }
+  if(btn2){
+    btn2.addEventListener('click', function(ev){
+      ev.stopPropagation();
+      triggerGyroButton(2);
+    });
+  }
+  return { root:root, canvas:canvas, ball:ball, btn1:btn1, btn2:btn2, infoEl:infoEl, eventEl:eventEl, targets:targets, geometry:null };
+}
+
+function setupGyroViews(){
+  try{
+    gyroState.panel = createGyroView('gyroWrap','gyroBall','gyroBtn1','gyroBtn2','gyroInfoText','gyroEventText');
+    gyroState.overlay = createGyroView('gyroOverlayWrap','gyroOverlayBall','gyroOverlayBtn1','gyroOverlayBtn2','gyroOverlayInfoText','gyroOverlayEventText');
+    refreshGyroGeometry();
+  }catch(e){
+    console.warn('Gyro view init error', e);
+  }
+}
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', setupGyroViews);
+}else{
+  setupGyroViews();
+}
+window.addEventListener('resize', function(){ refreshGyroGeometry(); });
+
+function getActiveGyroView(){
+  if(gyroMode === 'overlay' && gyroState.overlay) return gyroState.overlay;
+  return gyroState.panel || gyroState.overlay || null;
+}
+
+/* 공 / 투명 공 크기 비율 조정 */
+function updateGyroViewScale(view, cRect){
+  if(!view || !view.canvas || !view.ball) return;
+  cRect = cRect || view.canvas.getBoundingClientRect();
+  if(!cRect.width || !cRect.height) return;
+  var shorter = Math.min(cRect.width, cRect.height);
+  var ballSize = clampVal(shorter * 0.18, 24, 80);
+  var targetSize = ballSize * 2.1;
+
+  view.ball.style.width = ballSize + 'px';
+  view.ball.style.height = ballSize + 'px';
+
+  var els = view.canvas.querySelectorAll('.gyroTarget');
+  for(var i=0;i<els.length;i++){
+    els[i].style.width = targetSize + 'px';
+    els[i].style.height = targetSize + 'px';
+  }
+}
+
+/* 기하 정보 계산 */
+function refreshGyroGeometry(){
+  ['panel','overlay'].forEach(function(mode){
+    var view = gyroState[mode];
+    if(!view || !view.canvas || !view.ball) return;
+    var cRect = view.canvas.getBoundingClientRect();
+    if(!cRect.width || !cRect.height) return;
+
+    updateGyroViewScale(view, cRect);
+    cRect = view.canvas.getBoundingClientRect();
+
+    var centerX = cRect.width/2;
+    var centerY = cRect.height/2;
+
+    var ballRect = view.ball.getBoundingClientRect();
+    var ballRadius = ballRect.width/2;
+
+    var targetsInfo = {};
+    var maxX = 0, maxY = 0;
+
+    ['front','back','left','right'].forEach(function(name){
+      var el = view.targets[name];
+      if(!el) return;
+      var r = el.getBoundingClientRect();
+      var tx = (r.left - cRect.left) + r.width/2;
+      var ty = (r.top  - cRect.top ) + r.height/2;
+      var relX = tx - centerX;
+      var relY = ty - centerY;
+      var radius = r.width/2;
+      targetsInfo[name] = { relX:relX, relY:relY, radius:radius };
+      if(name==='left' || name==='right') maxX = Math.max(maxX, Math.abs(relX));
+      if(name==='front'|| name==='back')  maxY = Math.max(maxY, Math.abs(relY));
+    });
+
+    if(!maxX) maxX = cRect.width*0.25;
+    if(!maxY) maxY = cRect.height*0.25;
+
+    maxX *= 0.8;
+    maxY *= 0.8;
+
+    view.geometry = {
+      centerX:centerX,
+      centerY:centerY,
+      ballRadius:ballRadius,
+      maxX:maxX,
+      maxY:maxY,
+      targets:targetsInfo
+    };
+  });
+}
+
+/* 안내 문구 변경 */
+function setGyroInfo(where, text){
+  if(typeof text !== 'string') return;
+  if(where==='panel' || where==='all'){
+    var el = document.getElementById('gyroInfoText');
+    if(el) el.textContent = text;
+  }
+  if(where==='overlay' || where==='all'){
+    var el2 = document.getElementById('gyroOverlayInfoText');
+    if(el2) el2.textContent = text;
+  }
+}
+
+/* 이벤트 라벨 표시 */
+function showGyroEventLabel(text){
+  var label = '이벤트: ' + (text || '-');
+  var p = document.getElementById('gyroEventText');
+  if(p) p.textContent = label;
+  var o = document.getElementById('gyroOverlayEventText');
+  if(o) o.textContent = label;
+}
+
+/* 1,2번 버튼 이벤트 */
+function triggerGyroButton(idx){
+  if(!isRunning) return;
+  var code = (idx===1 ? 'BTN1' : 'BTN2');
+  var label = GYRO_EVENT_LABELS[code] || (idx+'번 버튼');
+  triggerEvent(code);
+  showGyroEventLabel(label);
+}
+
+/* 자이로 권한 */
+async function requestGyroPermission(){
+  if(!gyroSupported) return false;
+  if(gyroPermissionState === 'granted') return true;
+  try{
+    if(typeof DeviceOrientationEvent!=='undefined' &&
+       typeof DeviceOrientationEvent.requestPermission === 'function'){
+      var res = await DeviceOrientationEvent.requestPermission();
+      if(res === 'granted'){
+        gyroPermissionState = 'granted';
+        return true;
+      }else{
+        gyroPermissionState = 'denied';
+        return false;
+      }
+    }else{
+      gyroPermissionState = 'granted';
+      return true;
+    }
+  }catch(e){
+    console.warn('Gyro permission error', e);
+    gyroPermissionState = 'denied';
+    return false;
+  }
+}
+
+/* 자이로 시작/정지 */
+async function startGyro(mode){
+  if(!gyroSupported){
+    alert('이 기기에서는 자이로/기울기 센서를 사용할 수 없습니다.\n스마트폰에서 열어 주세요.');
+    return false;
+  }
+  var ok = await requestGyroPermission();
+  if(!ok){
+    alert('자이로 센서를 사용할 수 있는 권한이 없어 기울기 이벤트를 사용할 수 없습니다.');
+    return false;
+  }
+  gyroMode = mode || 'panel';
+  gyroActive = true;
+  gyroNeedsCalibrate = true;
+  gyroBaselineSet = false;
+  gyroInsideFlags = {front:false,back:false,left:false,right:false};
+  if(!gyroListenerAdded){
+    window.addEventListener('deviceorientation', onDeviceOrientation, true);
+    gyroListenerAdded = true;
+  }
+  setTimeout(refreshGyroGeometry, 80);
+  setGyroInfo('all','스마트폰을 수평으로 들고 있으면 기준점을 자동으로 맞춥니다.');
+  return true;
+}
+function stopGyro(){
+  gyroActive = false;
+  gyroNeedsCalibrate = false;
+}
+
+/* 화면 방향 변경 시 – 기준 재설정만 */
+(function(){
+  function orientationChanged(){
+    if(!gyroActive) return;
+    gyroNeedsCalibrate = true;
+    gyroBaselineSet = false;
+    setGyroInfo('all','화면 방향이 바뀌어 기준을 다시 맞추는 중입니다. 기기를 수평으로 두세요.');
+    setTimeout(refreshGyroGeometry, 120);
+  }
+  window.addEventListener('orientationchange', orientationChanged);
+  if(window.screen && screen.orientation && typeof screen.orientation.addEventListener === 'function'){
+    screen.orientation.addEventListener('change', orientationChanged);
+  }
+})();
+
+/* 공 위치 업데이트 */
+function onDeviceOrientation(ev){
+  if(!gyroActive) return;
+  var beta = ev.beta, gamma = ev.gamma;
+  if(typeof beta !== 'number' || typeof gamma !== 'number') return;
+
+  var mapped = mapTiltAxes(beta, gamma);
+  if(gyroNeedsCalibrate){
+    gyroBaselineFront = mapped.front;
+    gyroBaselineSide  = mapped.side;
+    gyroBaselineSet   = true;
+    gyroNeedsCalibrate = false;
+    setGyroInfo('all','기준이 설정되었습니다. 이제 스마트폰을 기울여 보세요.');
+  }
+  if(!gyroBaselineSet) return;
+
+  var dFront = mapped.front - gyroBaselineFront;
+  var dSide  = mapped.side  - gyroBaselineSide;
+
+  // 위쪽이 앞(front). 앞쪽으로 기울이면 위쪽, 왼쪽으로 기울이면 왼쪽.
+  var ny = clampVal(-dFront / GYRO_FRONT_RANGE, -1, 1);
+  var nx = clampVal( dSide  / GYRO_SIDE_RANGE , -1, 1);  // 좌우 방향 수정
+
+  updateGyroBall(nx, ny);
+}
+
+function updateGyroBall(nx, ny){
+  var view = getActiveGyroView();
+  if(!view || !view.ball) return;
+  if(!view.geometry) refreshGyroGeometry();
+  if(!view.geometry) return;
+
+  var g = view.geometry;
+  var offX = g.maxX * clampVal(nx, -1, 1);
+  var offY = g.maxY * clampVal(ny, -1, 1);
+
+  view.ball.style.transform = 'translate(calc(-50% + '+offX+'px), calc(-50% + '+offY+'px))';
+
+  var ballX = g.centerX + offX;
+  var ballY = g.centerY + offY;
+
+  ['front','back','left','right'].forEach(function(name){
+    var info = g.targets[name];
+    if(!info) return;
+    var targetX = g.centerX + info.relX;
+    var targetY = g.centerY + info.relY;
+    var dx = ballX - targetX;
+    var dy = ballY - targetY;
+    var dist = Math.sqrt(dx*dx + dy*dy);
+    var inside = dist <= Math.max(0, info.radius - g.ballRadius*0.4);
+    var prev   = gyroInsideFlags[name];
+    if(inside && !prev){
+      gyroInsideFlags[name] = true;
+      handleGyroTargetHit(name);
+    }else if(!inside && prev){
+      gyroInsideFlags[name] = false;
+    }
+  });
+}
+
+function handleGyroTargetHit(dir){
+  if(!isRunning) return;
+  var code = null;
+  if(dir==='front') code='TILT_FRONT';
+  else if(dir==='back') code='TILT_BACK';
+  else if(dir==='left') code='TILT_LEFT';
+  else if(dir==='right') code='TILT_RIGHT';
+  if(!code) return;
+  triggerEvent(code);
+  showGyroEventLabel(GYRO_EVENT_LABELS[code] || code);
+}
+
+/* 방향 고정: 전체화면 실행 시 현재 방향으로 잠금 (가능한 브라우저 한정) */
+async function lockCurrentOrientation(){
+  if(!('screen' in window) || !screen.orientation || !screen.orientation.lock) return;
+  var type = null;
+  try{
+    if(screen.orientation.type){
+      if(screen.orientation.type.indexOf('portrait') === 0) type = 'portrait';
+      else if(screen.orientation.type.indexOf('landscape') === 0) type = 'landscape';
+    }
+  }catch(e){}
+  if(!type){
+    var angle = getScreenAngle();
+    type = (angle===0 || angle===180) ? 'portrait' : 'landscape';
+  }
+  try{
+    await screen.orientation.lock(type);
+    orientationLockedType = type;
+    console.log('orientation locked:', type);
+  }catch(e){
+    orientationLockedType = null;
+    console.warn('orientation lock failed', e);
+  }
+}
+function unlockOrientation(){
+  try{
+    if('screen' in window && screen.orientation && screen.orientation.unlock && orientationLockedType){
+      screen.orientation.unlock();
+    }
+  }catch(e){}
+  orientationLockedType = null;
 }
 
 /* 테스트 실행 */
@@ -1335,9 +1512,13 @@ async function startTest(){
   eventPrograms = buildEventPrograms();
   cancelToken++; queue = [];
   isFullscreenRun = false;
-  await prepareGyroForRun();
   setRunning(true);
-  log('▶ 테스트 실행 준비 완료 (자이로/버튼 이벤트 대기)');
+  var ok = await startGyro('panel');
+  if(!ok){
+    log('⚠️ 자이로 센서를 사용할 수 없어 기울기 이벤트는 동작하지 않습니다.');
+  }else{
+    log('▶ 테스트 실행 (자이로/버튼 이벤트 대기)');
+  }
 }
 
 /* 전체화면 실행 */
@@ -1347,32 +1528,42 @@ async function startFullRun(){
   eventPrograms = buildEventPrograms();
   cancelToken++; queue = [];
   isFullscreenRun = true;
+  setRunning(true);
 
   overlay.classList.add('show');
   overlay.setAttribute('aria-hidden','false');
+
   try{
     if(overlay.requestFullscreen) await overlay.requestFullscreen();
   }catch(e){}
-  await lockScreenOrientationForRun();
-  await prepareGyroForRun();
-  setRunning(true);
-  log('▶ 전체화면 실행 시작 (자이로/버튼 이벤트 대기)');
+
+  await lockCurrentOrientation();
+
+  var ok = await startGyro('overlay');
+  if(!ok){
+    log('⚠️ 자이로 센서를 사용할 수 없어 기울기 이벤트는 동작하지 않습니다.');
+  }else{
+    log('▶ 전체화면 실행 시작 (자이로 이벤트 대기)');
+  }
 }
 
 /* 정지 */
 async function stopRun(){
   cancelToken++; queue=[];
   setRunning(false);
+  stopGyro();
   overlay.classList.remove('show');
   overlay.setAttribute('aria-hidden','true');
   isFullscreenRun = false;
   try{
     if(document.fullscreenElement) await document.exitFullscreen();
   }catch(e){}
-  await unlockScreenOrientationForRun();
+  unlockOrientation();
   try{
     if(writeChar) writeChar.writeValue(enc('S\n'));
   }catch(e){}
+  setGyroInfo('all', GYRO_GUIDE_TEXT);
+  showGyroEventLabel('-');
 }
 
 btnTest.onclick = ()=> { if(!isRunning) startTest(); };
@@ -1387,11 +1578,123 @@ document.addEventListener('keydown', (e)=>{
   if (isFullscreenRun && e.key === 'Escape') stopRun();
 });
 
+/* ================= 음성 인식(기능 유지, 현재는 로그만) ================= */
+var voiceBtn = document.getElementById('voiceBtn');
+var voiceStatus = document.getElementById('voiceStatus');
+var voiceText = document.getElementById('voiceText');
+
+var overlayVoiceBtn = document.getElementById('overlayVoiceBtn');
+var overlayVoiceStatus = document.getElementById('overlayVoiceStatus');
+var overlayVoiceText = document.getElementById('overlayVoiceText');
+
+var recognition = null;
+var recognizing = false;
+var listenTimer = null;
+var lastTranscript = '';
+
+function updateVoiceUI(state, msg){
+  if(voiceStatus){
+    if(state === 'idle')      voiceStatus.textContent = '대기 중';
+    else if(state === 'listening') voiceStatus.textContent = '듣는 중... (최대 3초)';
+    else if(state === 'thinking')  voiceStatus.textContent = '인식 중...';
+    else if(state === 'done')      voiceStatus.textContent = '인식 완료';
+    else if(state === 'error')     voiceStatus.textContent = '오류';
+  }
+  if(overlayVoiceStatus){
+    if(state === 'idle')      overlayVoiceStatus.textContent = '대기 중';
+    else if(state === 'listening') overlayVoiceStatus.textContent = '듣는 중... (최대 3초)';
+    else if(state === 'thinking')  overlayVoiceStatus.textContent = '인식 중...';
+    else if(state === 'done')      overlayVoiceStatus.textContent = '인식 완료';
+    else if(state === 'error')     overlayVoiceStatus.textContent = '오류';
+  }
+  if(typeof msg === 'string'){
+    if(voiceText) voiceText.textContent = msg;
+    if(overlayVoiceText) overlayVoiceText.textContent = msg;
+  }
+}
+
+function ensureSpeechRecognition(){
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){
+    return null;
+  }
+  if(!recognition){
+    recognition = new SR();
+    recognition.lang = 'ko-KR';
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 3;
+
+    recognition.onstart = function(){
+      recognizing = true;
+      if(voiceBtn) voiceBtn.classList.add('listening');
+      if(overlayVoiceBtn) overlayVoiceBtn.classList.add('listening');
+      updateVoiceUI('listening', '지금 말해 주세요...');
+    };
+    recognition.onerror = function(e){
+      recognizing = false;
+      if(voiceBtn) voiceBtn.classList.remove('listening');
+      if(overlayVoiceBtn) overlayVoiceBtn.classList.remove('listening');
+      clearTimeout(listenTimer);
+      log('❌ 음성 인식 오류: '+ (e && e.error ? e.error : e));
+      updateVoiceUI('error', '음성 인식 오류가 발생했습니다. 다시 시도해 주세요.');
+    };
+    recognition.onresult = function(event){
+      var interim='', finalText='';
+      for(var i=0;i<event.results.length;i++){
+        var res = event.results[i];
+        if(res.isFinal) finalText += res[0].transcript;
+        else interim += res[0].transcript;
+      }
+      var display = finalText || interim;
+      if(display){
+        updateVoiceUI('listening', display);
+        lastTranscript = display;
+      }
+    };
+    recognition.onend = function(){
+      recognizing = false;
+      if(voiceBtn) voiceBtn.classList.remove('listening');
+      if(overlayVoiceBtn) overlayVoiceBtn.classList.remove('listening');
+      clearTimeout(listenTimer);
+      if(lastTranscript){
+        updateVoiceUI('done', lastTranscript);
+        handleVoiceCommand(lastTranscript);
+      }else{
+        updateVoiceUI('idle', '인식된 문장이 없습니다. 다시 시도해 주세요.');
+      }
+    };
+  }
+  return recognition;
+}
+
+function startVoiceRecognition(){
+  var rec = ensureSpeechRecognition();
+  if(!rec) return;
+  if(recognizing){
+    try{ rec.stop(); }catch(e){}
+    return;
+  }
+  lastTranscript = '';
+  try{
+    rec.start();
+    updateVoiceUI('listening', '지금 말해 주세요...');
+    listenTimer = setTimeout(function(){
+      try{ rec.stop(); }catch(e){}
+    }, 3000);
+  }catch(e){
+    log('⚠️ 음성 인식 시작 실패: '+e);
+    updateVoiceUI('error', '음성 인식을 시작할 수 없습니다.');
+  }
+}
+if(voiceBtn) voiceBtn.addEventListener('click', startVoiceRecognition);
+if(overlayVoiceBtn) overlayVoiceBtn.addEventListener('click', startVoiceRecognition);
+
 /* 전체화면에서 두 번 탭하면 종료 */
 (function(){
-  if(!overlay) return;
+  var overlayEl = document.getElementById('playOverlay');
+  if(!overlayEl) return;
   var lastTapTime = 0;
-  overlay.addEventListener('pointerdown', function(e){
+  overlayEl.addEventListener('pointerdown', function(e){
     var now = e.timeStamp || Date.now();
     if(now - lastTapTime <= 300){
       stopRun();
@@ -1400,13 +1703,24 @@ document.addEventListener('keydown', (e)=>{
       lastTapTime = now;
     }
   }, {passive:true});
-  overlay.addEventListener('dblclick', function(){
+  overlayEl.addEventListener('dblclick', function(){
     stopRun();
   }, {passive:true});
 })();
 
-/* 자이로 시스템 초기화 */
-initGyroSystem();
+/* 음성 결과 → 로그만 남김 */
+function handleVoiceCommand(text){
+  if(!text){
+    log('🎙 인식 결과가 비어 있습니다.');
+    return;
+  }
+  log('🎙 인식 문장: "'+ text + '"');
+}
+function showOverlayPhrase(text, matched){
+  // 자이로 버전에서는 사용하지 않음 (호환용)
+}
+
+/* ================= 끝 ================= */
 </script>
 
 <script id="xrobo-hsplit-script">
@@ -1533,6 +1847,7 @@ initGyroSystem();
             if(typeof multiServoConfigs !== 'undefined' && multiServoConfigs &&
                typeof multiServoConfigs.clear==='function') multiServoConfigs.clear();
           }catch(_){}
+          try{ if(typeof refreshCodeDebounced === 'function') refreshCodeDebounced(); }catch(_){}
           try{ if(typeof log === 'function') log('🆕 새 프로젝트'); }catch(_){}
         }
       }else{
@@ -1674,8 +1989,10 @@ initGyroSystem();
     if(!outsideBound){
       if(hasPointer){
         document.addEventListener('pointerdown', outside, true);
-      }else{
+      }else if('ontouchstart' in window){
         document.addEventListener('touchstart', outside, {passive:false, capture:true});
+      }else{
+        document.addEventListener('mousedown', outside, true);
       }
       outsideBound = true;
     }
@@ -1697,6 +2014,18 @@ initGyroSystem();
   }
   function positionNearInput(input){ positionNearRect(input.getBoundingClientRect()); }
   function positionNearPoint(x,y){ positionNearRect({left:x, right:x, top:y, bottom:y, width:0, height:0}); }
+
+  function positionNearField(field){
+    try{
+      const root = field.getClickTarget_ ? field.getClickTarget_()
+                  : (field.getSvgRoot ? field.getSvgRoot() : null);
+      if(root && root.getBoundingClientRect){
+        positionNearRect(root.getBoundingClientRect());
+        return true;
+      }
+    }catch(_){}
+    return false;
+  }
 
   function startFollowInput(input){
     cancelAnimationFrame(rafId);
@@ -1787,15 +2116,7 @@ initGyroSystem();
       buffer = '';
     }
     showPad();
-    try{
-      const root = field.getClickTarget_ ? field.getClickTarget_()
-                  : (field.getSvgRoot ? field.getSvgRoot() : null);
-      if(root && root.getBoundingClientRect){
-        positionNearRect(root.getBoundingClientRect());
-      }else{
-        positionNearPoint(lastAnchor.x, lastAnchor.y);
-      }
-    }catch(_){
+    if(!positionNearField(field)){
       positionNearPoint(lastAnchor.x, lastAnchor.y);
     }
     if(disp) disp.textContent = buffer;
@@ -1804,11 +2125,13 @@ initGyroSystem();
   document.addEventListener('focusin', function(e){
     const t = e.target;
     if(!t) return;
+
     if(t.classList &&
        (t.classList.contains('blocklyHtmlInput') ||
         t.classList.contains('blocklyHtmlTextInput'))){
       return;
     }
+
     try{
       const uaOk = /Android/i.test(navigator.userAgent||'');
       if(uaOk && t.matches &&
@@ -1847,7 +2170,9 @@ initGyroSystem();
     const proto = FN.prototype;
     if(proto.__xrobo_kp4x4_patched) return;
     proto.__xrobo_kp4x4_patched = true;
+
     proto.__xrobo_kp4x4_origShowEditor = proto.showEditor_;
+
     proto.showEditor_ = function(){
       openForField(this);
     };
@@ -1859,6 +2184,7 @@ initGyroSystem();
     patchBlocklyNumber();
   }
   setTimeout(patchBlocklyNumber, 800);
+
 })();
 </script>
 </body>
